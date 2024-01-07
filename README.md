@@ -2,7 +2,7 @@
 
 A Python module with utility functions to parse and manipulate data generated with [NEMO 3D](https://nanohub.org/resources/12593). Specifically, it can directly read the binary outputs (`.nd_evec_*`, `.nd_wf_*`, `.nd_rAtom_*`, etc.), hence saving the time of converting binary to ASCII and reading ASCII into memory (which is binary).
 
-This is written in 2023 and used throughout my Master of Science (Physics) project at the University of Melbourne.
+This was written in 2023 and used throughout my Master of Science (Physics) project at the University of Melbourne.
 
 ## Usage
 
