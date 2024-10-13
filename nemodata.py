@@ -2,25 +2,36 @@ from dataclasses import dataclass
 from collections import defaultdict
 import warnings
 import numpy as np
+from scipy.signal import convolve2d
 
 @dataclass
 class NemoData:
-    """Container for NEMO 3D output data.
+    """
+    Container for NEMO 3D output data.
     """
     data: np.ndarray
     meta: dict
 
+
 def _read_header(file):
-    """Read header from a binary NEMO 3D output file.
+    """
+    Read header from a binary NEMO 3D output file.
 
-    Args:
-        file (io.BufferedReader): The opened binary file object.
+    Parameters
+    ----------
+    file : io.BufferedReader
+        The opened binary file object.
 
-    Raises:
-        RuntimeError: When the file format is not supported.
+    Returns
+    -------
+    list[str]
+        The lines of the NEMO 3D output file header.
 
-    Returns:
-        list[str]: The lines of the NEMO 3D output file header.
+    Raises
+    ------
+    RuntimeError
+        When the file format is not supported.
+
     """
     terminal = b'<\\HDR>'
     header = b''
@@ -36,18 +47,26 @@ def _read_header(file):
         header += char
     return header.decode('ascii').splitlines()[:-1]
 
+
 def _read_header_ascii(file):
-    """Read header from an ASCII NEMO 3D output file.
+    """
+    Read header from an ASCII NEMO 3D output file.
 
-    Args:
-        file (io.TextIOWrapper): The opened ASCII file object.
+    Parameters
+    ----------
+    file : io.TextIOWrapper
+        The opened ASCII file object.
 
-    Raises:
-        RuntimeError: When the file format is not supported,
-        or a binary file is opened.
+    Returns
+    -------
+    list[str]
+        The lines of the NEMO 3D output file header.
 
-    Returns:
-        list[str]: The lines of the NEMO 3D output file header.
+    Raises
+    ------
+    RuntimeError
+        When the file format is not supported, or a binary file is opened.
+
     """
     header_lines = []
     for line in file:
@@ -60,14 +79,21 @@ def _read_header_ascii(file):
         header_lines.append(line.rstrip('\n'))
     return header_lines
 
+
 def _parse_header_lines(lines):
-    """Convert header lines to metadata.
+    """
+    Convert header lines to metadata.
 
-    Args:
-        lines (list[str]): The lines of the NEMO 3D output file header.
+    Parameters
+    ----------
+    lines : list[str]
+        The lines of the NEMO 3D output file header.
 
-    Returns:
-        dict[str, list[tuple]]: The dictionary representation of the metadata.
+    Returns
+    -------
+    dict[str, list[tuple]]
+        The dictionary representation of the metadata.
+
     """
     meta = {'record format': [], 'record dimension': [], 'user data': []}
     for line in lines:
@@ -91,14 +117,21 @@ def _parse_header_lines(lines):
             meta['user data'].append(tuple(reversed(content)))
     return meta
 
+
 def _recfmt_to_dtype(recfmt):
-    """Create a numpy dtype from a NEMO 3D output record format.
+    """
+    Create a NumPy dtype from a NEMO 3D output record format.
 
-    Args:
-        recfmt (list[tuple[str]]): The 'record format' in metadata.
+    Parameters
+    ----------
+    recfmt : list[tuple[str]]
+        The 'record format' in metadata.
 
-    Returns:
-        list[tuple[str]]: An numpy.dtype compatible list.
+    Returns
+    -------
+    list[tuple[str]]
+        An numpy.dtype compatible list.
+
     """
     datatype = []
     cmplx_name = ''
@@ -127,17 +160,26 @@ def _recfmt_to_dtype(recfmt):
             datatype.append((name, 'i4'))
     return datatype[0][1] if len(datatype) == 1 else np.dtype(datatype)
 
+
 def parse(filename):
-    """Parse a binary NEMO 3D output file.
+    """
+    Parse a binary NEMO 3D output file.
 
-    Args:
-        filename (str): The path to the binary NEMO 3D output file.
+    Parameters
+    ----------
+    filename : str
+        The path to the binary NEMO 3D output file.
 
-    Raises:
-        RuntimeError: When the file format is not supported.
+    Returns
+    -------
+    NemoData
+        The container with parsed NEMO 3D output data.
 
-    Returns:
-        NemoData: The container with parsed NEMO 3D output data.
+    Raises
+    ------
+    RuntimeError
+        When the file format is not supported.
+
     """
     with open(filename, 'rb') as file:
         # initial treatment
@@ -151,7 +193,7 @@ def parse(filename):
         if '_ascii' in filename:
             warnings.warn('The file is likely not a binary file. Consider using parse_ascii().',
                           RuntimeWarning)
-        if '_dx^' in filename:
+        if '_dx+' in filename:
             warnings.warn('A dx file is opened. Special treatment may be required.',
                           RuntimeWarning)
 
@@ -159,18 +201,27 @@ def parse(filename):
         datatype = _recfmt_to_dtype(meta['record format'])
         data = np.fromfile(file, dtype=datatype)
         return NemoData(data, meta)
-        
+
+
 def parse_ascii(filename):
-    """Parse an ASCII NEMO 3D output file.
+    """
+    Parse an ASCII NEMO 3D output file.
 
-    Args:
-        filename (str): The path to the ASCII NEMO 3D output file.
+    Parameters
+    ----------
+    filename : str
+        The path to the ASCII NEMO 3D output file.
 
-    Raises:
-        RuntimeError: When the file format is not supported.
+    Returns
+    -------
+    NemoData
+        The record with parsed NEMO 3D output data.
 
-    Returns:
-        NemoData: The record with parsed NEMO 3D output data.
+    Raises
+    ------
+    RuntimeError
+        When the file format is not supported.
+
     """
     with open(filename, 'r') as file:
         # detect header
@@ -184,7 +235,7 @@ def parse_ascii(filename):
         if '_ascii' not in filename:
             warnings.warn('The file is likely a binary file. Consider using parse().',
                           RuntimeWarning)
-        if '_dx^' in filename:
+        if '_dx+' in filename:
             warnings.warn('A dx file is opened. Special treatment may be required.',
                           RuntimeWarning)
 
@@ -195,55 +246,66 @@ def parse_ascii(filename):
         data.dtype = datatype  # assign correct dtype
         return NemoData(data, meta)
 
+
 def evec_reshape(record):
-    """Reshape the NEMO 3D data parsed from a .nd_evec file.
+    """
+    Reshape the NEMO 3D data parsed from a .nd_evec file.
 
-    Args:
-        record (NemoData): The NEMO 3D record containing data from
-        a .nd_evec file.
+    Parameters
+    ----------
+    record : NemoData
+        The NEMO 3D record containing data from a .nd_evec file.
 
-    Raises:
-        ValueError: When the is not from a .nd_evec file.
-        RuntimeError: When the band model is invalid.
+    Raises
+    ------
+    ValueError
+        When the is not from a .nd_evec file.
+    RuntimeError
+        When the band model is invalid.
+
+    Notes
+    -----
+    For band model with spin, +/- denote up-/down-spin respectively.
+
     """
     if (len(record.meta['record dimension']) != 2 or
         record.meta['record dimension'][0][1] *
         record.meta['record dimension'][1][1] != record.data.size):
         raise ValueError('The record is not from a .nd_evec file.')
-    
+
     numtype = record.data.dtype
     if record.meta['user data'][0][1] == 'Bands_20_sp3d5ss_spin':
-        record.data.dtype = [('s*_', numtype),
-                             ('s_', numtype),
-                             ('px_', numtype),
-                             ('py_', numtype),
-                             ('pz_', numtype),
-                             ('dxy_', numtype),
-                             ('dyz_', numtype),
-                             ('dzx_', numtype),
-                             ('dx2-y2_', numtype),
-                             ('dz2_', numtype),
-                             ('s*^', numtype),
-                             ('s^', numtype),
-                             ('px^', numtype),
-                             ('py^', numtype),
-                             ('pz^', numtype),
-                             ('dxy^', numtype),
-                             ('dyz^', numtype),
-                             ('dzx^', numtype),
-                             ('dx2-y2^', numtype),
-                             ('dz2^', numtype)]
+        record.data.dtype = [('s*-', numtype),
+                             ('s-', numtype),
+                             ('px-', numtype),
+                             ('py-', numtype),
+                             ('pz-', numtype),
+                             ('dxy-', numtype),
+                             ('dyz-', numtype),
+                             ('dzx-', numtype),
+                             ('dx2-y2-', numtype),
+                             ('dz2-', numtype),
+                             ('s*+', numtype),
+                             ('s+', numtype),
+                             ('px+', numtype),
+                             ('py+', numtype),
+                             ('pz+', numtype),
+                             ('dxy+', numtype),
+                             ('dyz+', numtype),
+                             ('dzx+', numtype),
+                             ('dx2-y2+', numtype),
+                             ('dz2+', numtype)]
     elif record.meta['user data'][0][1] == 'Bands_10_sp3ss_spin':
-        record.data.dtype = [('s*_', numtype),
-                             ('s_', numtype),
-                             ('px_', numtype),
-                             ('py_', numtype),
-                             ('pz_', numtype),
-                             ('s^', numtype),
-                             ('s*^', numtype),
-                             ('px^', numtype),
-                             ('py^', numtype),
-                             ('pz^', numtype)]
+        record.data.dtype = [('s*-', numtype),
+                             ('s-', numtype),
+                             ('px-', numtype),
+                             ('py-', numtype),
+                             ('pz-', numtype),
+                             ('s+', numtype),
+                             ('s*+', numtype),
+                             ('px+', numtype),
+                             ('py+', numtype),
+                             ('pz+', numtype)]
     elif record.meta['user data'][0][1] == 'Bands_10_sp3d5ss_nospin':
         record.data.dtype = [('s*', numtype),
                              ('s', numtype),
@@ -258,26 +320,40 @@ def evec_reshape(record):
     elif record.meta['user data'][0][1] != 'Bands_1_s_nospin':
         raise RuntimeError('Unsupported band model.')
 
+
 def project(coord, data, axis_1, axis_2=None):
-    """Project the data onto the selected coordinate axes.
-    
-    Args:
-        coord (numpy.ndarray): The NumPy structured array of the coordinates.
-        data (numpy.ndarray): The NumPy array of the data.
-        axis_1 (str): The first axis to project onto.
-        axis_2 (str): Optional. The second axis to project onto.
+    """
+    Project the data onto the selected coordinate axes.
 
-    Raises:
-        ValueError: When the two NumPy arrays has different dimension.
-        TypeError: When the value of the data array cannot be summed.
+    Parameters
+    ----------
+    coord : numpy.ndarray
+        The NumPy structured array of the coordinates.
+    data : numpy.ndarray
+        The NumPy array of the data.
+    axis_1 : str
+        The first axis to project onto.
+    axis_2 : str, optional
+        The second axis to project onto. If not provided, the projection is 1D.
 
-    Returns:
-        numpy.ndarray: A NumPy array of the unique coordinate(s) with
+    Returns
+    -------
+    numpy.ndarray
+        A NumPy array of the unique coordinate(s) with
         the associated projected values.
+
+    Raises
+    ------
+    ValueError
+        When the two NumPy arrays has different dimension.
+    TypeError
+        When the value of the data array cannot be summed.
+        This happens when a not numerical record is passed.
+
     """
     if coord.size != data.size:
         raise ValueError('The size of the coordinate and data arrays must be equal.')
-    
+
     subcoord = coord[[axis_1, axis_2]] if axis_2 else coord[axis_1]
     unique_coord, indices = np.unique(subcoord, axis=0, return_inverse=True)
     projection = np.bincount(indices, weights=data)
