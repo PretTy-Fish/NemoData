@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from collections import defaultdict
 import warnings
 import numpy as np
-from scipy.signal import convolve2d
 
 @dataclass
 class NemoData:
